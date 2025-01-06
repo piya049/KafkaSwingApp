@@ -1,0 +1,51 @@
+pipeline {
+    agent any
+    environment {
+        DOCKER_IMAGE = "kafka-swing/spring-kafka-app:${GIT_COMMIT}"
+        DOCKER_CREDENTIALS_ID = 'dockerhub-credentials' // ID of Docker Hub credentials in Jenkins
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                // Clone the repository
+                git 'https://github.com/your-username/your-repo.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                // Running Maven build
+                sh './mvnw clean package -DskipTests'
+            }
+        }
+        stage('Build Docker Image') {
+            steps {
+                // Build the Docker image
+                sh "docker build -t ${DOCKER_IMAGE} ."
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                // Log in to Docker Hub and push the image
+                withCredentials([usernamePassword(credentialsId: "${DOCKER_CREDENTIALS_ID}", usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
+                    sh "docker push ${DOCKER_IMAGE}"
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                // Here, you could use SSH or other methods to deploy your application.
+                // For instance, if you have a separate deployment step:
+                // sh 'ssh user@your-server "docker pull ${DOCKER_IMAGE} && docker run -d -p 8080:8080 ${DOCKER_IMAGE}"'
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}
